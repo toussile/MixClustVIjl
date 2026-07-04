@@ -1,5 +1,6 @@
 using Test
 using Random
+using Statistics
 using Plots
 using MixClustVIjl
 
@@ -188,8 +189,8 @@ end
                 @test all(x -> x >= 0 && !isnan(x) && isfinite(x), P_j)
             end
             
-            # 2. Test predict_subtypes and predictive_log_likelihood
-            w_pred = predict_subtypes(results, dataset)
+            # 2. Test predict_proba and predictive_log_likelihood
+            w_pred = predict_proba(results, dataset)
             @test size(w_pred) == (n, K_fit)
             @test all(x -> isapprox(sum(w_pred[x, :]), 1.0, atol=1e-6), 1:n)
             
@@ -231,6 +232,47 @@ end
         @test eig[3] > eig[4]
         @test eig[5] > eig[6]
         @test eig[7] > eig[8]
+    end
+
+    @testset "Computed properties of MixClustResult" begin
+        results = mixClust(dataset, K_fit; model_setting=SFRM(), max_iter=30, tol=1e-4,
+                           alpha_0=0.01, prune=true)
+        @test results.n_obs      == n
+        @test results.n_features == length(dataset)
+        @test results.n_clusters == size(results.w, 2)
+        @test length(results.cluster_sizes) == results.n_clusters
+        @test sum(results.cluster_sizes) == n
+    end
+
+    @testset "simulate_synthetic_cohort" begin
+        cohort = simulate_synthetic_cohort()
+        @test length(cohort.data) == 7
+        @test length(cohort.labels) == 150
+        @test all(l -> l in (1, 2, 3), cohort.labels)
+        @test length(cohort.feature_names) == 7
+        # Reproducibility: same seed → same data
+        cohort2 = simulate_synthetic_cohort(seed=2026)
+        @test cohort.labels == cohort2.labels
+        @test cohort.data[1] == cohort2.data[1]
+        # Custom size
+        cohort3 = simulate_synthetic_cohort(n=60)
+        @test length(cohort3.labels) == 60
+    end
+
+    @testset "load_heart_disease" begin
+        hd = load_heart_disease()
+        @test length(hd.data) == 13
+        @test length(hd.labels) == 297
+        @test all(l -> l in (0, 1), hd.labels)
+        @test length(hd.feature_names) == 13
+        # Continuous features are standardized (mean ≈ 0)
+        for j in [1, 4, 5, 8, 10]
+            @test abs(mean(hd.data[j])) < 1e-10
+        end
+        # Categorical features are one-hot vectors
+        for j in [2, 3, 6, 7, 9, 11, 12, 13]
+            @test all(v -> sum(v) == 1, hd.data[j])
+        end
     end
 
     @testset "CAVI with Iterative Background Estimation" begin
