@@ -138,6 +138,9 @@ end
         
         # Verify that ELBO converges and values are finite
         @test all(!isnan, results.elbo_history)
+        # ELBO must be monotonically non-decreasing (CAVI guarantee)
+        @test all(i -> results.elbo_history[i] >= results.elbo_history[i-1] - 1e-6,
+                  2:length(results.elbo_history))
         
         # Compute Expected Information Gain (EIG) post-hoc
         eig = compute_eig(results.margins, results.w, results.pip)
@@ -219,10 +222,13 @@ end
         @test length(results.margins) == p_total
         @test length(results.elbo_history) >= 2
         @test all(!isnan, results.elbo_history)
-        
+        # ELBO must be monotonically non-decreasing (CAVI guarantee)
+        @test all(i -> results.elbo_history[i] >= results.elbo_history[i-1] - 1e-6,
+                  2:length(results.elbo_history))
+
         # Compute EIG and verify active vs noise feature separation
         eig = compute_eig(results.margins, results.w, results.pip)
-        
+
         println("Model 2 EIG values:")
         for (idx, val) in enumerate(eig)
             println("Feature $idx (Active label: $(idx % 2 == 1)): EIG = ", round(val, digits=4))
@@ -280,7 +286,9 @@ end
         res_iter1 = mixClust(dataset, K_fit; model_setting=SFRM(), max_iter=40, tol=1e-4, alpha_0=0.01, prune=false, beta_estimation=:iterative)
         @test size(res_iter1.w) == (n, K_fit)
         @test all(!isnan, res_iter1.elbo_history)
-        
+        # Note: :iterative uses heuristic background updates (not proper coord ascent),
+        # so strict monotonicity is not guaranteed — we only check finiteness.
+
         # 2. LFRM + :iterative
         res_iter2 = mixClust(dataset, K_fit; model_setting=LFRM(), max_iter=40, tol=1e-4, alpha_0=0.01, prune=false, beta_estimation=:iterative)
         @test size(res_iter2.w) == (n, K_fit)

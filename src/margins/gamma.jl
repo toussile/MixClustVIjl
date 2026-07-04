@@ -133,6 +133,17 @@ function predictive_density(margin::GammaMargin, y_new::AbstractVector)
     return pred
 end
 
+function kl_from_prior(margin::GammaMargin)
+    kl = 0.0
+    a0 = margin.alpha_0;  b0 = margin.beta_0
+    for k in 1:length(margin.alpha_star)
+        a = margin.alpha_star[k];  b = margin.beta_star[k]
+        kl += (a - a0) * digamma(a) - loggamma(a) + loggamma(a0) +
+              a0 * log(b / b0) - a + b0 * a / b
+    end
+    return kl
+end
+
 function update_background!(margin::GammaMargin, y_j::AbstractVector, gamma_j::AbstractVector)
     n = length(y_j)
     sum_w = 0.0

@@ -63,4 +63,15 @@ function update_background!(margin::AbstractMargin, y_j::AbstractVector, gamma_j
     error("update_background! not implemented for type $(typeof(margin))")
 end
 
+"""
+    kl_from_prior(margin::AbstractMargin) -> Float64
+
+KL divergence of the variational posterior q(θ_j) from the prior p(θ_j), summed over
+all K clusters.  This term is needed for the true (monotone) ELBO:
+    ELBO = E_data + H_latent + E_latent_prior - KL_omega - KL_gamma - kl_from_prior(margin)
+"""
+function kl_from_prior(margin::AbstractMargin)
+    error("kl_from_prior not implemented for type $(typeof(margin))")
+end
+
 

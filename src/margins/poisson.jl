@@ -102,6 +102,17 @@ function predictive_density(margin::PoissonMargin, y_new::AbstractVector)
     return pred
 end
 
+function kl_from_prior(margin::PoissonMargin)
+    kl = 0.0
+    a0 = margin.a_0;  b0 = margin.b_0
+    for k in 1:length(margin.a_star)
+        a = margin.a_star[k];  b = margin.b_star[k]
+        kl += (a - a0) * digamma(a) - loggamma(a) + loggamma(a0) +
+              a0 * log(b / b0) - a + b0 * a / b
+    end
+    return kl
+end
+
 function update_background!(margin::PoissonMargin, y_j::AbstractVector, gamma_j::AbstractVector)
     n = length(y_j)
     sum_w = 0.0

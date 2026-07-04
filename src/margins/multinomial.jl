@@ -151,6 +151,26 @@ function predictive_density(margin::MultinomialMargin, y_new::AbstractVector)
     return pred
 end
 
+function kl_from_prior(margin::MultinomialMargin)
+    K   = size(margin.varphi_star, 1)
+    C   = length(margin.varphi)
+    phi0 = margin.varphi
+    log_B_prior = sum(loggamma.(phi0)) - loggamma(sum(phi0))
+    kl = 0.0
+    for k in 1:K
+        phi_k     = margin.varphi_star[k, :]
+        sum_phi_k = sum(phi_k)
+        log_B_q   = sum(loggamma.(phi_k)) - loggamma(sum_phi_k)
+        psi_sum   = digamma(sum_phi_k)
+        kl_k = log_B_prior - log_B_q
+        for c in 1:C
+            kl_k += (phi_k[c] - phi0[c]) * (digamma(phi_k[c]) - psi_sum)
+        end
+        kl += kl_k
+    end
+    return kl
+end
+
 function update_background!(margin::MultinomialMargin, y_j::AbstractVector, gamma_j::AbstractVector)
     n = length(y_j)
     C_j = length(margin.varphi)

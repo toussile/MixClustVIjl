@@ -123,6 +123,21 @@ function predictive_density(margin::GaussianMargin, y_new::AbstractVector)
     return pred
 end
 
+function kl_from_prior(margin::GaussianMargin)
+    kl = 0.0
+    for k in 1:length(margin.mu_star)
+        a  = margin.a_star[k];   b  = margin.b_star[k]
+        κ  = margin.kappa_star[k]; μ = margin.mu_star[k]
+        a0 = margin.a_0;          b0 = margin.b_0
+        κ0 = margin.kappa_0;      μ0 = margin.mu_0
+        kl += (a - a0) * digamma(a) - loggamma(a) + loggamma(a0) +
+              a0 * log(b / b0) - a + b0 * a / b - 0.5 +
+              0.5 * log(κ / κ0) + 0.5 * κ0 / κ +
+              0.5 * κ0 * (μ - μ0)^2 * a / b
+    end
+    return kl
+end
+
 function update_background!(margin::GaussianMargin, y_j::AbstractVector, gamma_j::AbstractVector)
     n = length(y_j)
     sum_w = 0.0

@@ -309,12 +309,29 @@ function _cavi_once(data::AbstractVector, K::Int,
             end
         end
 
-        for j in 1:p
-            update_margin!(margins[j], data[j], w, pip[:, j])
-            beta_estimation === :iterative && update_background!(margins[j], data[j], pip[:, j])
+        # Refresh E_ln_omega and E_ln_gamma from the just-updated alpha_star and
+        # delta_star before the ELBO computation.  E_log_f / log_f0 are kept from
+        # the start of this iteration (old margins): computing the ELBO before
+        # update_margin! with these consistent parameters guarantees that the
+        # ELBO sequence is monotonically non-decreasing.
+        psi_sum_alpha = digamma(sum(alpha_star))
+        E_ln_omega    = [digamma(alpha_star[k]) - psi_sum_alpha for k in 1:K]
+
+        if model_setting isa SFRM
+            for j in 1:p
+                psi_sum = digamma(delta_star[j, 1] + delta_star[j, 2])
+                E_ln_gamma[j, 1] = digamma(delta_star[j, 1]) - psi_sum
+                E_ln_gamma[j, 2] = digamma(delta_star[j, 2]) - psi_sum
+            end
+        else
+            for k in 1:K, j in 1:p
+                psi_sum = digamma(delta_star[k, j, 1] + delta_star[k, j, 2])
+                E_ln_gamma[k, j, 1] = digamma(delta_star[k, j, 1]) - psi_sum
+                E_ln_gamma[k, j, 2] = digamma(delta_star[k, j, 2]) - psi_sum
+            end
         end
 
-        # --- D. Compute ELBO ---
+        # --- D. Compute ELBO (before margin update) ---
         E_data = 0.0
         for j in 1:p, i in 1:n
             term_active = sum(w[i, k] * E_log_f[j][i, k] for k in 1:K)
@@ -368,7 +385,17 @@ function _cavi_once(data::AbstractVector, K::Int,
             end
         end
 
-        push!(elbo_history, E_data + H_latent + E_latent_prior - KL_omega - KL_gamma)
+        KL_theta = sum(kl_from_prior(margins[j]) for j in 1:p)
+
+        push!(elbo_history, E_data + H_latent + E_latent_prior - KL_omega - KL_gamma - KL_theta)
+
+        # --- E. Update Margin Parameters (after ELBO) ---
+        # Kept after ELBO so the logged sequence uses consistent
+        # (w_t, pip_t, alpha_t, delta_t, margins_{t-1}), which is monotone.
+        for j in 1:p
+            update_margin!(margins[j], data[j], w, pip[:, j])
+            beta_estimation === :iterative && update_background!(margins[j], data[j], pip[:, j])
+        end
 
         if max(maximum(abs.(w .- w_old)), maximum(abs.(pip .- pip_old))) < tol
             break
