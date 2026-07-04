@@ -84,8 +84,7 @@ results = mixClust(dataset, 10;
                    n_init        = 10,
                    max_iter_init = 10)
 
-K_hat = size(results.w, 2)
-println("Estimated number of clusters: K̂ = ", K_hat)   # → 3
+println("Estimated number of clusters: K̂ = ", results.n_clusters)   # → 3
 
 # ── 3. Feature selection via EIG ───────────────────────────────────────────
 τ      = 0.10
@@ -95,8 +94,7 @@ println("Active features (EIG ≥ $τ): ", feature_names[active])
 # → ["age", "mutations", "tumour_size", "histology"]
 
 # ── 4. Hard cluster assignments ────────────────────────────────────────────
-k_hat = results.labels
-println("Cluster sizes: ", [count(==(k), k_hat) for k in 1:K_hat])
+println("Cluster sizes: ", results.cluster_sizes)
 
 # ── 5. Visualizations ─────────────────────────────────────────────────────
 plot_elbo(results)                            # convergence check
@@ -153,6 +151,19 @@ verify the detection before the CAVI run starts.
 ---
 
 ## Bundled datasets
+
+### `simulate_synthetic_cohort()`
+
+Generates the synthetic clinicogenomic patient cohort used in the paper (150 patients,
+3 subtypes, 5 informative + 2 noise features). Fully reproducible via a fixed seed:
+
+```julia
+cohort = simulate_synthetic_cohort()          # seed=2026, n=150 by default
+cohort = simulate_synthetic_cohort(seed=42, n=300)  # custom seed and size
+# cohort.data          — Vector{Any} with 7 features, ready for mixClust
+# cohort.labels        — Vector{Int}: true cluster assignment (1, 2, or 3)
+# cohort.feature_names — ["age", "bmi", "mutations", "tumour_size", "histology", ...]
+```
 
 ### `load_heart_disease()`
 
