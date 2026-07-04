@@ -202,7 +202,9 @@ results = mixClust(dataset, K_fit;
                    feature_types  = nothing)  # optional override per feature (see below)
 ```
 
-`results` is a `MixClustResult` struct:
+`results` is a `MixClustResult` struct.
+
+**Stored fields:**
 
 | Field | Type | Description |
 | :--- | :--- | :--- |
@@ -213,6 +215,15 @@ results = mixClust(dataset, K_fit;
 | `results.elbo_history` | `Vector{Float64}` | ELBO values over iterations |
 | `results.alpha_star` | `Vector{Float64}` | Variational Dirichlet parameters (length K̂) |
 | `results.delta_star` | `Array{Float64}` | Variational Beta parameters for relevance |
+
+**Computed properties** (available via dot-syntax, no extra code needed):
+
+| Property | Type | Description |
+| :--- | :--- | :--- |
+| `results.n_clusters` | `Int` | Estimated number of active clusters K̂ |
+| `results.n_obs` | `Int` | Number of individuals n |
+| `results.n_features` | `Int` | Number of features p |
+| `results.cluster_sizes` | `Vector{Int}` | Number of individuals per cluster |
 
 ### Model settings
 

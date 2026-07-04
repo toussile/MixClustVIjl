@@ -53,6 +53,8 @@ Result returned by [`mixClust`](@ref) (and [`prune_and_merge_clusters`](@ref)).
 
 # Fields
 
+## Stored fields
+
 | Field | Type | Description |
 |:--- |:--- |:--- |
 | `w` | `Matrix{Float64}` (n × K̂) | Soft cluster assignments; each row is a probability vector summing to 1 |
@@ -62,6 +64,17 @@ Result returned by [`mixClust`](@ref) (and [`prune_and_merge_clusters`](@ref)).
 | `delta_star` | `Array{Float64}` | Variational Beta parameters for relevance: shape `(p,2)` under SFRM, `(K̂,p,2)` under LFRM |
 | `margins` | `Vector{AbstractMargin}` (length p) | Fitted margin objects, one per feature |
 | `elbo_history` | `Vector{Float64}` | ELBO value at each CAVI iteration (useful for convergence diagnostics) |
+
+## Computed properties
+
+These virtual properties are computed on access via dot-syntax — no extra function calls needed.
+
+| Property | Type | Description |
+|:--- |:--- |:--- |
+| `n_clusters` | `Int` | Estimated number of active clusters K̂ |
+| `n_obs` | `Int` | Number of individuals n |
+| `n_features` | `Int` | Number of features p |
+| `cluster_sizes` | `Vector{Int}` | Number of individuals per cluster (hard assignment) |
 
 # Accessing results
 
@@ -82,3 +95,21 @@ struct MixClustResult
     margins::Vector{AbstractMargin} # fitted margin objects, one per feature
     elbo_history::Vector{Float64}   # ELBO history across CAVI iterations
 end
+
+const _VIRTUAL_PROPS = (:n_clusters, :n_obs, :n_features, :cluster_sizes)
+
+function Base.getproperty(r::MixClustResult, s::Symbol)
+    s === :n_clusters   && return size(getfield(r, :w), 2)
+    s === :n_obs        && return size(getfield(r, :w), 1)
+    s === :n_features   && return length(getfield(r, :margins))
+    s === :cluster_sizes && begin
+        K = size(getfield(r, :w), 2)
+        lbl = getfield(r, :labels)
+        return [count(==(k), lbl) for k in 1:K]
+    end
+    return getfield(r, s)
+end
+
+Base.propertynames(::MixClustResult, private::Bool=false) =
+    (:w, :labels, :pip, :alpha_star, :delta_star, :margins, :elbo_history,
+     _VIRTUAL_PROPS...)
