@@ -50,12 +50,12 @@ function filter_features(eig::Vector{Float64}, threshold::Real)
 end
 
 """
-    predict_subtypes(results::MixClustResult, new_data::AbstractVector) -> Matrix{Float64}
+    cluster_probabilities(results::MixClustResult, new_data::AbstractVector) -> Matrix{Float64}
 
 Computes the posterior subtype assignment probabilities q(z^*_i = k | y^*_i) for new observations.
 Returns an n_new x K matrix where rows sum to 1.
 """
-function predict_subtypes(results::MixClustResult, new_data::AbstractVector)
+function cluster_probabilities(results::MixClustResult, new_data::AbstractVector)
     p = length(results.margins)
     n_new = length(new_data[1])
     K = length(results.alpha_star)
