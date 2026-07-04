@@ -160,8 +160,6 @@ function predictive_log_likelihood(results::MixClustResult, new_data::AbstractVe
     return total_log_lik
 end
 
-# Helper to extract kappa_0 from a GaussianMargin
-margin_kappa0(m::GaussianMargin) = m.kappa_0
 
 """
     prune_and_merge_clusters(results::MixClustResult, data::AbstractVector; size_threshold=0.02, merge_threshold=0.85) -> MixClustResult
@@ -267,7 +265,7 @@ function prune_and_merge_clusters(results::MixClustResult, data::AbstractVector;
         elseif typeof(margins[j]) <: GammaMargin
             new_margins[j] = GammaMargin(y_j, K; alpha_0=margins[j].alpha_0, beta_0=margins[j].beta_0)
         else
-            new_margins[j] = GaussianMargin(y_j, K; mu_0=margins[j].mu_0, kappa_0=margin_kappa0(margins[j]), a_0=margins[j].a_0, b_0=margins[j].b_0)
+            new_margins[j] = GaussianMargin(y_j, K; mu_0=margins[j].mu_0, kappa_0=margins[j].kappa_0, a_0=margins[j].a_0, b_0=margins[j].b_0)
         end
         update_margin!(new_margins[j], y_j, w, pip[:, j])
     end
