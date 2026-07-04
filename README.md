@@ -63,69 +63,18 @@ Pkg.add("MixClustVIjl")
 
 ## Example: clustering a synthetic patient cohort
 
-The following self-contained example generates a dataset of 150 patients described by
-five heterogeneous features (two continuous, one count, one positive-continuous, one
-categorical) plus two uninformative noise features. Three subtypes are present.
+150 patients, 3 subtypes, 5 informative features (Gaussian, Gaussian, Poisson, Gamma,
+Multinomial) + 2 uninformative noise features.
 
 ```julia
-using MixClustVIjl, Random, Statistics
+using MixClustVIjl
 
-Random.seed!(2026)
-
-# ── 1. Simulate a mixed-type patient dataset ───────────────────────────────
-n       = 150          # 150 patients
-K_true  = 3            # 3 true subtypes, 50 patients each
-labels  = vcat(fill(1, 50), fill(2, 50), fill(3, 50))
-
-# Helper: multinomial draw
-function rand_cat(probs)
-    u = rand(); cum = 0.0
-    for (i, p) in enumerate(probs)
-        cum += p; u <= cum && return i
-    end
-    return length(probs)
-end
-
-# Feature 1 – Age (Gaussian, standardized). Mean differs across subtypes.
-age_raw = [labels[i] == 1 ? 45.0 + 8randn() :
-           labels[i] == 2 ? 62.0 + 8randn() : 55.0 + 8randn() for i in 1:n]
-age = (age_raw .- mean(age_raw)) ./ std(age_raw)
-
-# Feature 2 – BMI (Gaussian, standardized). Subtype 3 has elevated BMI.
-bmi_raw = [labels[i] == 3 ? 31.0 + 4randn() : 24.0 + 4randn() for i in 1:n]
-bmi = (bmi_raw .- mean(bmi_raw)) ./ std(bmi_raw)
-
-# Feature 3 – Mutation count (Poisson). Subtype 2 is hypermutated.
-function rpois(λ)
-    L = exp(-λ); k = 0; p = 1.0
-    while p > L; k += 1; p *= rand(); end
-    return k - 1
-end
-mutation_count = Float64[labels[i] == 1 ? rpois(2.0) :
-                         labels[i] == 2 ? rpois(18.0) : rpois(6.0) for i in 1:n]
-
-# Feature 4 – Tumour size in mm (Gamma, positive continuous).
-rand_gamma(shape, rate) = -sum(log(rand()) for _ in 1:round(Int, shape)) / rate
-tumour_size = [labels[i] == 1 ? rand_gamma(3, 0.3) :
-               labels[i] == 2 ? rand_gamma(3, 0.1) : rand_gamma(3, 0.2) for i in 1:n]
-
-# Feature 5 – Histological subtype (Multinomial, 3 categories).
-# P(category | subtype): subtypes have distinct profiles.
-cat_probs = [[0.8, 0.1, 0.1], [0.1, 0.8, 0.1], [0.1, 0.2, 0.7]]
-histology  = [[rand_cat(cat_probs[labels[i]]) == c ? 1 : 0 for c in 1:3] for i in 1:n]
-
-# Noise features (uninformative)
-noise_gaussian = randn(n)
-noise_count    = Float64[rpois(4.0) for _ in 1:n]
-
-# Assemble the dataset as Vector{Any} (one element per feature)
-feature_names = ["age", "bmi", "mutations", "tumour_size", "histology",
-                 "noise_cont", "noise_count"]
-dataset = Any[age, bmi, mutation_count, tumour_size, histology,
-              noise_gaussian, noise_count]
+# ── 1. Generate the synthetic dataset ─────────────────────────────────────
+cohort        = simulate_synthetic_cohort()   # seed=2026, n=150 by default
+dataset       = cohort.data
+feature_names = cohort.feature_names
 
 # ── 2. Fit the model ───────────────────────────────────────────────────────
-# K_fit = 10 (overfitted mixture); the model will prune down to the true K.
 results = mixClust(dataset, 10;
                    model_setting = LFRM(),
                    alpha_0       = 0.01,
@@ -139,14 +88,14 @@ K_hat = size(results.w, 2)
 println("Estimated number of clusters: K̂ = ", K_hat)   # → 3
 
 # ── 3. Feature selection via EIG ───────────────────────────────────────────
-τ = 0.10                                      # EIG detection threshold
-eig     = compute_eig(results.margins, results.w, results.pip)
-active  = filter_features(eig, τ)
+τ      = 0.10
+eig    = compute_eig(results.margins, results.w, results.pip)
+active = filter_features(eig, τ)
 println("Active features (EIG ≥ $τ): ", feature_names[active])
 # → ["age", "mutations", "tumour_size", "histology"]
 
 # ── 4. Hard cluster assignments ────────────────────────────────────────────
-k_hat = results.labels                        # Vector{Int} of length n
+k_hat = results.labels
 println("Cluster sizes: ", [count(==(k), k_hat) for k in 1:K_hat])
 
 # ── 5. Visualizations ─────────────────────────────────────────────────────
@@ -163,13 +112,13 @@ plot_assignments(results, dataset;            # 2-D scatter coloured by cluster
                  feature_names)
 
 # ── 6. Out-of-sample prediction ────────────────────────────────────────────
-w_new  = predict_subtypes(results, dataset)   # reuse training data as demo
+w_new  = predict_subtypes(results, dataset)
 ll_new = predictive_log_likelihood(results, dataset)
 println("Log-predictive density: ", round(ll_new, digits=1))
 ```
 
-The full real-data analyses from the paper (UCI Heart Disease, synthetic simulations)
-are available in [`experiments/scripts/`](../experiments/scripts/).
+The UCI Heart Disease dataset used in the paper is bundled with the package
+and can be loaded directly — see [Bundled datasets](#bundled-datasets) below.
 
 ---
 
@@ -200,6 +149,36 @@ results = mixClust(dataset, 10;
 Each entry is `:gaussian`, `:poisson`, `:gamma`, `:multinomial`, or `nothing` (auto-detect).
 `mixClust` will print the resolved type of every feature at `@info` level so you can
 verify the detection before the CAVI run starts.
+
+---
+
+## Bundled datasets
+
+### `load_heart_disease()`
+
+The UCI Heart Disease (Cleveland) dataset (297 individuals, 13 features) is included
+in the package and ready to use without any external files or downloads:
+
+```julia
+hd = load_heart_disease()
+# hd.data          — Vector{Any} with 13 features, ready for mixClust
+# hd.labels        — Vector{Int}: 0 = healthy, 1 = disease
+# hd.feature_names — ["age", "sex", "cp", ...]
+
+results = mixClust(hd.data, 10;
+                   model_setting = SFRM(),
+                   alpha_0       = 0.01,
+                   max_iter      = 2000,
+                   tol           = 1e-5,
+                   prune         = true)
+
+eig    = compute_eig(results.margins, results.w, results.pip)
+active = filter_features(eig, 0.10)
+println("Active features: ", hd.feature_names[active])
+```
+
+Continuous features (`age`, `trestbps`, `chol`, `thalach`, `oldpeak`) are standardized;
+categorical and binary features are one-hot encoded as `Vector{Vector{Int}}`.
 
 ---
 
