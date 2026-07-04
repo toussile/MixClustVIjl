@@ -51,6 +51,18 @@ using Pkg
 Pkg.develop(path="/path/to/MixClustVIjl")
 ```
 
+### Updating
+
+```julia
+Pkg.update("MixClustVIjl")
+```
+
+Or in the Julia REPL package manager (`]` key):
+
+```
+] update MixClustVIjl
+```
+
 ### From the Julia General Registry (planned)
 
 Once registered:
