@@ -35,11 +35,11 @@ a single model fit.
 
 ## Installation
 
-### From GitHub (recommended once the repository is public)
+### From GitHub
 
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/wilsontoussile/MixClustVIjl.jl")
+Pkg.add(url="https://github.com/toussile/MixClustVIjl.git")
 ```
 
 ### Local development install
