@@ -26,7 +26,7 @@ export GaussianMargin, MultinomialMargin, PoissonMargin, GammaMargin
 
 # Export functions
 export mixClust, compute_eig, filter_features
-export cluster_probabilities, predictive_log_likelihood, prune_and_merge_clusters
+export predict_proba, predictive_log_likelihood, prune_and_merge_clusters
 export plot_elbo, plot_pips, plot_eig, plot_assignments, plot_profiles
 export plot_cluster_sizes, plot_assignment_confidence, plot_local_pips
 

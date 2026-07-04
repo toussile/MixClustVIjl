@@ -27,7 +27,7 @@ a single model fit.
 - **Multi-start screening** — automatic warm-start strategy selects the best
   initialization before the full CAVI run.
 - **Out-of-sample prediction** — assign new observations to the learned cluster
-  structure via `cluster_probabilities`.
+  structure via `predict_proba`.
 - **8 built-in visualizations** — covering the full analysis workflow from convergence
   diagnostics to cluster-specific feature profiles.
 
@@ -112,7 +112,7 @@ plot_assignments(results, dataset;            # 2-D scatter coloured by cluster
                  feature_names)
 
 # ── 6. Out-of-sample prediction ────────────────────────────────────────────
-w_new  = cluster_probabilities(results, dataset)
+w_new  = predict_proba(results, dataset)
 ll_new = predictive_log_likelihood(results, dataset)
 println("Log-predictive density: ", round(ll_new, digits=1))
 ```
@@ -248,7 +248,7 @@ active  = filter_features(eig, 0.10)
 ### Out-of-sample prediction
 
 ```julia
-w_new  = cluster_probabilities(results, new_dataset)
+w_new  = predict_proba(results, new_dataset)
 # → (n_new × K̂) matrix; rows sum to 1
 
 ll_new = predictive_log_likelihood(results, new_dataset)
