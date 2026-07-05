@@ -127,12 +127,12 @@ end
     
     @testset "CAVI Model 1 (Shared Relevance)" begin
         # Fit overfitted CAVI Model 1
-        results = mixClust(dataset, K_fit; model_setting=SFRM(), max_iter=80, tol=1e-5, alpha_0=0.01, prune=false)
+        results = mixClust(dataset, K_fit; model_setting=SFRM(), max_iter=80, tol=1e-5, u0=0.01, prune=false)
         
         # Check output structure sizes
         @test size(results.w) == (n, K_fit)
         @test size(results.pip) == (n, p_total)
-        @test length(results.alpha_star) == K_fit
+        @test length(results.u_star) == K_fit
         @test length(results.margins) == p_total
         @test length(results.elbo_history) >= 2
         
@@ -207,18 +207,18 @@ end
             @test K_pruned <= K_fit
             @test size(results_pruned.w, 1) == n
             @test length(results_pruned.margins) == p_total
-            @test length(results_pruned.alpha_star) == K_pruned
+            @test length(results_pruned.u_star) == K_pruned
         end
     end
 
     @testset "CAVI Model 2 (Cluster-Specific Relevance)" begin
         # Fit overfitted CAVI Model 2
-        results = mixClust(dataset, K_fit; model_setting=LFRM(), max_iter=80, tol=1e-5, alpha_0=0.01, prune=false)
+        results = mixClust(dataset, K_fit; model_setting=LFRM(), max_iter=80, tol=1e-5, u0=0.01, prune=false)
         
         # Check output structure sizes
         @test size(results.w) == (n, K_fit)
         @test size(results.pip) == (n, p_total)
-        @test length(results.alpha_star) == K_fit
+        @test length(results.u_star) == K_fit
         @test length(results.margins) == p_total
         @test length(results.elbo_history) >= 2
         @test all(!isnan, results.elbo_history)
@@ -242,7 +242,7 @@ end
 
     @testset "Computed properties of MixClustResult" begin
         results = mixClust(dataset, K_fit; model_setting=SFRM(), max_iter=30, tol=1e-4,
-                           alpha_0=0.01, prune=true)
+                           u0=0.01, prune=true)
         @test results.n_obs      == n
         @test results.n_features == length(dataset)
         @test results.n_clusters == size(results.w, 2)
@@ -283,14 +283,14 @@ end
 
     @testset "CAVI with Iterative Background Estimation" begin
         # 1. SFRM + :iterative
-        res_iter1 = mixClust(dataset, K_fit; model_setting=SFRM(), max_iter=40, tol=1e-4, alpha_0=0.01, prune=false, beta_estimation=:iterative)
+        res_iter1 = mixClust(dataset, K_fit; model_setting=SFRM(), max_iter=40, tol=1e-4, u0=0.01, prune=false, beta_estimation=:iterative)
         @test size(res_iter1.w) == (n, K_fit)
         @test all(!isnan, res_iter1.elbo_history)
         # Note: :iterative uses heuristic background updates (not proper coord ascent),
         # so strict monotonicity is not guaranteed — we only check finiteness.
 
         # 2. LFRM + :iterative
-        res_iter2 = mixClust(dataset, K_fit; model_setting=LFRM(), max_iter=40, tol=1e-4, alpha_0=0.01, prune=false, beta_estimation=:iterative)
+        res_iter2 = mixClust(dataset, K_fit; model_setting=LFRM(), max_iter=40, tol=1e-4, u0=0.01, prune=false, beta_estimation=:iterative)
         @test size(res_iter2.w) == (n, K_fit)
         @test all(!isnan, res_iter2.elbo_history)
     end

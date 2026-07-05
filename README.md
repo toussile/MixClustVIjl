@@ -89,7 +89,7 @@ feature_names = cohort.feature_names
 # ── 2. Fit the model ───────────────────────────────────────────────────────
 results = mixClust(dataset, 10;
                    model_setting = LFRM(),
-                   alpha_0       = 0.01,
+                   u0            = 0.01,
                    max_iter      = 500,
                    tol           = 1e-4,
                    prune         = true,
@@ -129,6 +129,40 @@ println("Log-predictive density: ", round(ll_new, digits=1))
 
 The UCI Heart Disease dataset used in the paper is bundled with the package
 and can be loaded directly — see [Bundled datasets](#bundled-datasets) below.
+
+---
+
+## Example: Iris dataset (4 Gaussian features)
+
+```julia
+using MixClustVIjl, Random, Statistics
+
+# Standardize the 4 continuous features
+standardize(v) = (v .- mean(v)) ./ std(v)
+data = [standardize(iris_matrix[:, j]) for j in 1:4]
+feature_names = ["sepal_length", "sepal_width", "petal_length", "petal_width"]
+
+Random.seed!(2026)
+results = mixClust(data, 8;
+                   model_setting = SFRM(),
+                   u0            = 0.01,
+                   max_iter      = 500,
+                   tol           = 1e-5,
+                   prune         = true,
+                   n_init        = 10,
+                   max_iter_init = 10)
+
+println("Estimated clusters: ", results.n_clusters)   # → 3  (true: 3)
+
+eig    = compute_eig(results.margins, results.w, results.pip)
+active = filter_features(eig, 0.10)
+println("Active features: ", feature_names[active])
+# → all 4 features active; petal_length and petal_width have highest EIG
+```
+
+Expected output: $\hat{K} = 3$, ARI ≈ 0.72, ELBO monotone.
+`petal_length` (EIG ≈ 0.94) and `petal_width` (EIG ≈ 0.87) are the most
+discriminative features, consistent with the classical analysis of this dataset.
 
 ---
 
@@ -190,7 +224,7 @@ hd = load_heart_disease()
 
 results = mixClust(hd.data, 10;
                    model_setting = SFRM(),
-                   alpha_0       = 0.01,
+                   u0            = 0.01,
                    max_iter      = 2000,
                    tol           = 1e-5,
                    prune         = true)
@@ -212,7 +246,7 @@ categorical and binary features are one-hot encoded as `Vector{Vector{Int}}`.
 ```julia
 results = mixClust(dataset, K_fit;
                    model_setting  = SFRM(),   # or LFRM()
-                   alpha_0        = 0.01,     # Dirichlet sparsity (< 1; smaller → more pruning)
+                   u0             = 0.01,     # u⁽⁰⁾: Dirichlet sparsity (< 1; smaller → more pruning)
                    delta_prior    = (1.0, 1.0), # Beta prior for relevance indicators
                    max_iter       = 500,      # CAVI iterations for the final run
                    tol            = 1e-4,     # convergence tolerance
@@ -236,7 +270,7 @@ results = mixClust(dataset, K_fit;
 | `results.pip` | `n × p Matrix{Float64}` | Posterior Inclusion Probabilities |
 | `results.margins` | `Vector{AbstractMargin}` | Fitted margin objects (one per feature) |
 | `results.elbo_history` | `Vector{Float64}` | ELBO values over iterations |
-| `results.alpha_star` | `Vector{Float64}` | Variational Dirichlet parameters (length K̂) |
+| `results.u_star` | `Vector{Float64}` | Variational Dirichlet parameters (length K̂) |
 | `results.delta_star` | `Array{Float64}` | Variational Beta parameters for relevance |
 
 **Computed properties** (available via dot-syntax, no extra code needed):

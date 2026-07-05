@@ -32,7 +32,7 @@ The 13 features, in order:
 hd = load_heart_disease()
 results = mixClust(hd.data, 10;
                    model_setting = SFRM(),
-                   alpha_0       = 0.01,
+                   u0            = 0.01,
                    max_iter      = 2000,
                    tol           = 1e-5,
                    prune         = true)
@@ -120,7 +120,7 @@ With the default `seed=2026` and `n=150`, the dataset matches the example in the
 cohort = simulate_synthetic_cohort()
 results = mixClust(cohort.data, 10;
                    model_setting = LFRM(),
-                   alpha_0       = 0.01,
+                   u0            = 0.01,
                    max_iter      = 500,
                    tol           = 1e-4,
                    prune         = true,

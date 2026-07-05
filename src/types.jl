@@ -60,7 +60,7 @@ Result returned by [`mixClust`](@ref) (and [`prune_and_merge_clusters`](@ref)).
 | `w` | `Matrix{Float64}` (n × K̂) | Soft cluster assignments; each row is a probability vector summing to 1 |
 | `labels` | `Vector{Int}` (length n) | Hard assignment: `labels[i] = argmax(w[i, :])` |
 | `pip` | `Matrix{Float64}` (n × p) | Posterior Inclusion Probabilities `γᵢⱼ ∈ (0,1)` |
-| `alpha_star` | `Vector{Float64}` (length K̂) | Variational Dirichlet parameters `α★ₖ = α₀ + Σᵢ wᵢₖ` |
+| `u_star` | `Vector{Float64}` (length K̂) | Variational Dirichlet parameters `u★ₖ = u⁽⁰⁾ + Σᵢ wᵢₖ` |
 | `delta_star` | `Array{Float64}` | Variational Beta parameters for relevance: shape `(p,2)` under SFRM, `(K̂,p,2)` under LFRM |
 | `margins` | `Vector{AbstractMargin}` (length p) | Fitted margin objects, one per feature |
 | `elbo_history` | `Vector{Float64}` | ELBO value at each CAVI iteration (useful for convergence diagnostics) |
@@ -90,7 +90,7 @@ struct MixClustResult
     w::Matrix{Float64}              # n × K soft cluster assignment probabilities
     labels::Vector{Int}             # MAP cluster assignment: argmax of each row of w
     pip::Matrix{Float64}            # n × p Posterior Inclusion Probabilities γᵢⱼ
-    alpha_star::Vector{Float64}     # K variational Dirichlet parameters α★
+    u_star::Vector{Float64}         # K variational Dirichlet parameters u★
     delta_star::Array{Float64}      # Beta parameters for relevance: (p,2) SFRM or (K,p,2) LFRM
     margins::Vector{AbstractMargin} # fitted margin objects, one per feature
     elbo_history::Vector{Float64}   # ELBO history across CAVI iterations
@@ -111,5 +111,5 @@ function Base.getproperty(r::MixClustResult, s::Symbol)
 end
 
 Base.propertynames(::MixClustResult, private::Bool=false) =
-    (:w, :labels, :pip, :alpha_star, :delta_star, :margins, :elbo_history,
+    (:w, :labels, :pip, :u_star, :delta_star, :margins, :elbo_history,
      _VIRTUAL_PROPS...)

@@ -58,11 +58,11 @@ Returns an n_new x K matrix where rows sum to 1.
 function predict_proba(results::MixClustResult, new_data::AbstractVector)
     p = length(results.margins)
     n_new = length(new_data[1])
-    K = length(results.alpha_star)
+    K = length(results.u_star)
     
     # 1. Compute expected mixing weights omega_bar
-    sum_alpha = sum(results.alpha_star)
-    omega_bar = results.alpha_star ./ sum_alpha
+    sum_alpha = sum(results.u_star)
+    omega_bar = results.u_star ./ sum_alpha
     
     # 2. Compute expected feature inclusion probabilities gamma_bar (K x p)
     gamma_bar = Matrix{Float64}(undef, K, p)
@@ -119,10 +119,10 @@ Computes the total out-of-sample log-predictive density log p(y^* | y) on a test
 function predictive_log_likelihood(results::MixClustResult, new_data::AbstractVector)
     p = length(results.margins)
     n_new = length(new_data[1])
-    K = length(results.alpha_star)
+    K = length(results.u_star)
     
-    sum_alpha = sum(results.alpha_star)
-    omega_bar = results.alpha_star ./ sum_alpha
+    sum_alpha = sum(results.u_star)
+    omega_bar = results.u_star ./ sum_alpha
     
     gamma_bar = Matrix{Float64}(undef, K, p)
     if ndims(results.delta_star) == 2
@@ -171,7 +171,7 @@ function prune_and_merge_clusters(results::MixClustResult, data::AbstractVector;
                                   merge_threshold=0.85)
     w = copy(results.w)
     pip = copy(results.pip)
-    alpha_star = copy(results.alpha_star)
+    u_star = copy(results.u_star)
     delta_star = copy(results.delta_star)
     margins = [deepcopy(m) for m in results.margins]
     
@@ -197,7 +197,7 @@ function prune_and_merge_clusters(results::MixClustResult, data::AbstractVector;
                 w[i, :] .= 1.0 / length(active_clusters)
             end
         end
-        alpha_star = alpha_star[active_clusters]
+        u_star = u_star[active_clusters]
         if ndims(delta_star) == 3
             delta_star = delta_star[active_clusters, :, :]
         end
@@ -248,7 +248,7 @@ function prune_and_merge_clusters(results::MixClustResult, data::AbstractVector;
             end
             
             w = w_new
-            alpha_star = [sum(w[:, k]) for k in 1:(K-1)]
+            u_star = [sum(w[:, k]) for k in 1:(K-1)]
             K = K - 1
             merged = true
         end
@@ -270,9 +270,9 @@ function prune_and_merge_clusters(results::MixClustResult, data::AbstractVector;
         update_margin!(new_margins[j], y_j, w, pip[:, j])
     end
     
-    new_alpha_star = fill(0.01 + n / K, K)
+    new_u_star = fill(0.01 + n / K, K)
     for k in 1:K
-        new_alpha_star[k] = 0.01 + sum(w[:, k])
+        new_u_star[k] = 0.01 + sum(w[:, k])
     end
     
     new_delta_star = ndims(results.delta_star) == 2 ? fill(1.0, p, 2) : fill(1.0, K, p, 2)
@@ -288,6 +288,6 @@ function prune_and_merge_clusters(results::MixClustResult, data::AbstractVector;
     end
     
     labels = [argmax(w[i, :]) for i in 1:size(w, 1)]
-    return MixClustResult(w, labels, pip, new_alpha_star, new_delta_star, new_margins, results.elbo_history)
+    return MixClustResult(w, labels, pip, new_u_star, new_delta_star, new_margins, results.elbo_history)
 end
 

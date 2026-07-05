@@ -9,7 +9,7 @@ end
 
 const _VALID_MARGIN_TYPES = (:gaussian, :poisson, :gamma, :multinomial)
 
-function _validate_input(data, K, alpha_0, tol, delta_prior,
+function _validate_input(data, K, u0, tol, delta_prior,
                          size_threshold, merge_threshold, beta_estimation,
                          n_init, max_iter_init, max_iter,
                          user_feature_types, resolved_types)
@@ -42,11 +42,11 @@ function _validate_input(data, K, alpha_0, tol, delta_prior,
         any(isinf, y_j) && throw(ArgumentError("Feature $j contains Inf values."))
     end
 
-    alpha_0 > 0 || throw(ArgumentError("alpha_0 must be > 0 (got $alpha_0)."))
-    if alpha_0 >= 1
-        @warn "alpha_0 = $alpha_0 ≥ 1: the Dirichlet prior is not sparse. " *
+    u0 > 0 || throw(ArgumentError("u0 must be > 0 (got $u0)."))
+    if u0 >= 1
+        @warn "u0 = $u0 ≥ 1: the Dirichlet prior is not sparse. " *
               "Automatic order selection may not work reliably. " *
-              "Recommended range: alpha_0 ∈ (0, 0.1]."
+              "Recommended range: u0 ∈ (0, 0.1]."
     end
 
     tol > 0 || throw(ArgumentError("tol must be > 0 (got $tol)."))
@@ -176,7 +176,7 @@ end
 # If `init` is a MixClustResult → warm-start from that state (used for the full run after screening).
 function _cavi_once(data::AbstractVector, K::Int,
                     model_setting::ModelSetting,
-                    alpha_0, delta_prior,
+                    u0, delta_prior,
                     max_iter::Int, tol,
                     beta_estimation::Symbol,
                     feature_types::Vector{Symbol};
@@ -190,7 +190,7 @@ function _cavi_once(data::AbstractVector, K::Int,
         margins    = _init_margins(data, K, feature_types)
         w          = _init_w(n, K)
         pip        = fill(0.9, n, p)
-        alpha_star = fill(alpha_0 + n / K, K)
+        u_star = fill(u0 + n / K, K)
         if model_setting isa SFRM
             delta_star = fill(1.0, p, 2)
             delta_star[:, 1] .= d1;  delta_star[:, 2] .= d0
@@ -205,7 +205,7 @@ function _cavi_once(data::AbstractVector, K::Int,
         margins    = deepcopy(init.margins)
         w          = copy(init.w)
         pip        = copy(init.pip)
-        alpha_star = copy(init.alpha_star)
+        u_star = copy(init.u_star)
         delta_star = copy(init.delta_star)
     end
 
@@ -216,8 +216,8 @@ function _cavi_once(data::AbstractVector, K::Int,
         pip_old = copy(pip)
 
         # --- A. Parameter Expectations ---
-        psi_sum_alpha = digamma(sum(alpha_star))
-        E_ln_omega    = [digamma(alpha_star[k]) - psi_sum_alpha for k in 1:K]
+        psi_sum_alpha = digamma(sum(u_star))
+        E_ln_omega    = [digamma(u_star[k]) - psi_sum_alpha for k in 1:K]
 
         E_ln_gamma = model_setting isa SFRM ?
                      Matrix{Float64}(undef, p, 2) :
@@ -291,7 +291,7 @@ function _cavi_once(data::AbstractVector, K::Int,
         # --- C. Update Parameter Distributions ---
 
         for k in 1:K
-            alpha_star[k] = alpha_0 + sum(w[:, k])
+            u_star[k] = u0 + sum(w[:, k])
         end
 
         if model_setting isa SFRM
@@ -309,13 +309,13 @@ function _cavi_once(data::AbstractVector, K::Int,
             end
         end
 
-        # Refresh E_ln_omega and E_ln_gamma from the just-updated alpha_star and
+        # Refresh E_ln_omega and E_ln_gamma from the just-updated u_star and
         # delta_star before the ELBO computation.  E_log_f / log_f0 are kept from
         # the start of this iteration (old margins): computing the ELBO before
         # update_margin! with these consistent parameters guarantees that the
         # ELBO sequence is monotonically non-decreasing.
-        psi_sum_alpha = digamma(sum(alpha_star))
-        E_ln_omega    = [digamma(alpha_star[k]) - psi_sum_alpha for k in 1:K]
+        psi_sum_alpha = digamma(sum(u_star))
+        E_ln_omega    = [digamma(u_star[k]) - psi_sum_alpha for k in 1:K]
 
         if model_setting isa SFRM
             for j in 1:p
@@ -365,10 +365,10 @@ function _cavi_once(data::AbstractVector, K::Int,
             end
         end
 
-        KL_omega = loggamma(sum(alpha_star)) - loggamma(K * alpha_0)
+        KL_omega = loggamma(sum(u_star)) - loggamma(K * u0)
         for k in 1:K
-            KL_omega += loggamma(alpha_0) - loggamma(alpha_star[k]) +
-                        (alpha_star[k] - alpha_0) * E_ln_omega[k]
+            KL_omega += loggamma(u0) - loggamma(u_star[k]) +
+                        (u_star[k] - u0) * E_ln_omega[k]
         end
 
         ln_beta_d = loggamma(d1) + loggamma(d0) - loggamma(d1 + d0)
@@ -403,11 +403,11 @@ function _cavi_once(data::AbstractVector, K::Int,
     end
 
     labels = [argmax(w[i, :]) for i in 1:n]
-    return MixClustResult(w, labels, pip, alpha_star, delta_star, margins, elbo_history)
+    return MixClustResult(w, labels, pip, u_star, delta_star, margins, elbo_history)
 end
 
 """
-    mixClust(data, K; model_setting, alpha_0, delta_prior, max_iter, tol,
+    mixClust(data, K; model_setting, u0, delta_prior, max_iter, tol,
              prune, size_threshold, merge_threshold, beta_estimation,
              n_init, max_iter_init, feature_types) -> MixClustResult
 
@@ -427,7 +427,7 @@ Fit a finite Bayesian mixture model via CAVI on heterogeneous data.
 - `model_setting`: [`SFRM()`](@ref) (shared relevance, one probability per feature)
   or [`LFRM()`](@ref) (local relevance, one probability per feature–cluster pair).
   Default: `SFRM()`.
-- `alpha_0`: Symmetric Dirichlet hyperparameter `α₀` for mixing weights.
+- `u0`: Symmetric Dirichlet hyperparameter `u⁽⁰⁾` for mixing weights.
   Values well below 1 (e.g. `0.01`) induce sparsity and drive automatic order
   selection. Default: `0.01`.
 - `delta_prior`: `(δ₁, δ₀)` hyperparameters of the Beta(`δ₁`, `δ₀`) prior on
@@ -479,7 +479,7 @@ fitted margins, ELBO history, and variational parameters.
 """
 function mixClust(data::AbstractVector, K::Int;
                   model_setting::ModelSetting = SFRM(),
-                  alpha_0                     = 0.01,
+                  u0                          = 0.01,
                   delta_prior                 = (1.0, 1.0),
                   max_iter::Int               = 500,
                   tol                         = 1e-4,
@@ -495,7 +495,7 @@ function mixClust(data::AbstractVector, K::Int;
     resolved_types = _resolve_feature_types(data, feature_types)
 
     # Validate all inputs; throws ArgumentError / DimensionMismatch on bad input
-    _validate_input(data, K, alpha_0, tol, delta_prior,
+    _validate_input(data, K, u0, tol, delta_prior,
                     size_threshold, merge_threshold, beta_estimation,
                     n_init, max_iter_init, max_iter,
                     feature_types, resolved_types)
@@ -508,10 +508,10 @@ function mixClust(data::AbstractVector, K::Int;
                 for j in eachindex(resolved_types)])
 
     # Phase 1: n_init short screening runs
-    best_screen = _cavi_once(data, K, model_setting, alpha_0, delta_prior,
+    best_screen = _cavi_once(data, K, model_setting, u0, delta_prior,
                              max_iter_init, tol, beta_estimation, resolved_types)
     for _ in 2:n_init
-        candidate = _cavi_once(data, K, model_setting, alpha_0, delta_prior,
+        candidate = _cavi_once(data, K, model_setting, u0, delta_prior,
                                max_iter_init, tol, beta_estimation, resolved_types)
         if last(candidate.elbo_history) > last(best_screen.elbo_history)
             best_screen = candidate
@@ -519,7 +519,7 @@ function mixClust(data::AbstractVector, K::Int;
     end
 
     # Phase 2: full run warm-started from the best screening state
-    best = _cavi_once(data, K, model_setting, alpha_0, delta_prior,
+    best = _cavi_once(data, K, model_setting, u0, delta_prior,
                       max_iter, tol, beta_estimation, resolved_types; init = best_screen)
 
     if prune
