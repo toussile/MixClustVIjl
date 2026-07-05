@@ -12,23 +12,26 @@ a single model fit.
 
 ## Features
 
-- **Mixed data types** — Gaussian (continuous), Poisson (count), Gamma (positive
+- **Mixed data types**: Gaussian (continuous), Poisson (count), Gamma (positive
   continuous), and Multinomial (categorical) variables can be freely combined in the
   same model.
-- **Automatic cluster order selection** — a sparse symmetric Dirichlet prior on an
-  overfitted mixture automatically prunes redundant components; no need to specify
+- **Automatic cluster order selection**: a sparse symmetric Dirichlet prior on an
+  overfitted mixture automatically empties redundant components; no need to specify
   *K* in advance.
+- **Post-hoc cluster refinement**: a deterministic pruning-and-merging step removes
+  residual spurious components left by the variational approximation, producing a
+  clean final partition.
 - **Two feature-relevance models**
-  - `SFRM()` — each feature has one shared relevance probability across all clusters.
-  - `LFRM()` — each feature can be relevant in some clusters and irrelevant in others,
+  - `SFRM()`: each feature has one shared relevance probability across all clusters.
+  - `LFRM()`: each feature can be relevant in some clusters and irrelevant in others,
     capturing finer subgroup-specific signal.
-- **Post-hoc EIG filter** — an Expected Information Gain criterion controls the False
+- **Post-hoc EIG filter**: an Expected Information Gain criterion controls the False
   Discovery Rate for feature selection.
-- **Multi-start screening** — automatic warm-start strategy selects the best
+- **Multi-start screening**: automatic warm-start strategy selects the best
   initialization before the full CAVI run.
-- **Out-of-sample prediction** — assign new observations to the learned cluster
+- **Out-of-sample prediction**: assign new observations to the learned cluster
   structure via `predict_proba`.
-- **8 built-in visualizations** — covering the full analysis workflow from convergence
+- **8 built-in visualizations**: covering the full analysis workflow from convergence
   diagnostics to cluster-specific feature profiles.
 
 ---
@@ -138,7 +141,7 @@ and can be loaded directly — see [Bundled datasets](#bundled-datasets) below.
 using MixClustVIjl, RDatasets, Statistics, Random
 
 # Load and standardize
-iris          = dataset("datasets", "iris")
+iris          = RDatasets.dataset("datasets", "iris")
 standardize(v) = (v .- mean(v)) ./ std(v)
 data          = [standardize(Vector(iris[:, col]))
                  for col in [:SepalLength, :SepalWidth, :PetalLength, :PetalWidth]]
@@ -160,6 +163,20 @@ eig    = compute_eig(results.margins, results.w, results.pip)
 active = filter_features(eig, 0.10)
 println("Active features: ", feature_names[active])
 # → all 4 features active; petal_length and petal_width have highest EIG
+
+# ── Visualizations ─────────────────────────────────────────────────────
+plot_elbo(results)                            # convergence check
+plot_cluster_sizes(results)                   # individuals per cluster
+plot_assignment_confidence(results)           # crisp assignments?
+plot_pips(results; feature_names)             # global PIPs
+plot_eig(eig, τ; feature_names)              # EIG bar chart
+plot_local_pips(results; feature_names)       # per-cluster PIPs (LFRM)
+plot_profiles(results, data;               # feature z-scores per cluster
+              feature_names, threshold=τ)
+plot_assignments(results, data;            # 2-D scatter coloured by cluster
+                 x_feature=1, y_feature=3,
+                 feature_names)
+
 ```
 
 Expected output: $\hat{K} = 3$, ARI ≈ 0.72, ELBO monotone.
