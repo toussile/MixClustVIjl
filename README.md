@@ -135,11 +135,13 @@ and can be loaded directly — see [Bundled datasets](#bundled-datasets) below.
 ## Example: Iris dataset (4 Gaussian features)
 
 ```julia
-using MixClustVIjl, Random, Statistics
+using MixClustVIjl, RDatasets, Statistics, Random
 
-# Standardize the 4 continuous features
+# Load and standardize
+iris          = dataset("datasets", "iris")
 standardize(v) = (v .- mean(v)) ./ std(v)
-data = [standardize(iris_matrix[:, j]) for j in 1:4]
+data          = [standardize(Vector(iris[:, col]))
+                 for col in [:SepalLength, :SepalWidth, :PetalLength, :PetalWidth]]
 feature_names = ["sepal_length", "sepal_width", "petal_length", "petal_width"]
 
 Random.seed!(2026)
