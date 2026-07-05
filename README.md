@@ -244,7 +244,7 @@ categorical and binary features are one-hot encoded as `Vector{Vector{Int}}`.
 ### Model fitting
 
 ```julia
-results = mixClust(dataset, K_fit;
+results = mixClust(dataset, K_max;
                    model_setting  = SFRM(),   # or LFRM()
                    u0             = 0.01,     # u⁽⁰⁾: Dirichlet sparsity (< 1; smaller → more pruning)
                    delta_prior    = (1.0, 1.0), # Beta prior for relevance indicators

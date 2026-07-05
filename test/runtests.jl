@@ -43,7 +43,7 @@ end
     
     n = 120
     K_true = 3
-    K_fit = 8 # Overfitted mixture
+    K_max = 8 # Overfitted mixture
     
     # Assign true cluster membership: 40 individuals per cluster
     true_z = vcat(fill(1, 40), fill(2, 40), fill(3, 40))
@@ -127,12 +127,12 @@ end
     
     @testset "CAVI Model 1 (Shared Relevance)" begin
         # Fit overfitted CAVI Model 1
-        results = mixClust(dataset, K_fit; model_setting=SFRM(), max_iter=80, tol=1e-5, u0=0.01, prune=false)
+        results = mixClust(dataset, K_max; model_setting=SFRM(), max_iter=80, tol=1e-5, u0=0.01, prune=false)
         
         # Check output structure sizes
-        @test size(results.w) == (n, K_fit)
+        @test size(results.w) == (n, K_max)
         @test size(results.pip) == (n, p_total)
-        @test length(results.u_star) == K_fit
+        @test length(results.u_star) == K_max
         @test length(results.margins) == p_total
         @test length(results.elbo_history) >= 2
         
@@ -188,13 +188,13 @@ end
             # 1. Test predictive density of concrete margins on test data
             for j in 1:p_total
                 P_j = MixClustVIjl.predictive_density(results.margins[j], dataset[j][1:10])
-                @test size(P_j) == (10, K_fit)
+                @test size(P_j) == (10, K_max)
                 @test all(x -> x >= 0 && !isnan(x) && isfinite(x), P_j)
             end
             
             # 2. Test predict_proba and predictive_log_likelihood
             w_pred = predict_proba(results, dataset)
-            @test size(w_pred) == (n, K_fit)
+            @test size(w_pred) == (n, K_max)
             @test all(x -> isapprox(sum(w_pred[x, :]), 1.0, atol=1e-6), 1:n)
             
             log_lik = predictive_log_likelihood(results, dataset)
@@ -204,7 +204,7 @@ end
             # 3. Test prune_and_merge_clusters
             results_pruned = prune_and_merge_clusters(results, dataset; size_threshold=0.05, merge_threshold=0.95)
             K_pruned = size(results_pruned.w, 2)
-            @test K_pruned <= K_fit
+            @test K_pruned <= K_max
             @test size(results_pruned.w, 1) == n
             @test length(results_pruned.margins) == p_total
             @test length(results_pruned.u_star) == K_pruned
@@ -213,12 +213,12 @@ end
 
     @testset "CAVI Model 2 (Cluster-Specific Relevance)" begin
         # Fit overfitted CAVI Model 2
-        results = mixClust(dataset, K_fit; model_setting=LFRM(), max_iter=80, tol=1e-5, u0=0.01, prune=false)
+        results = mixClust(dataset, K_max; model_setting=LFRM(), max_iter=80, tol=1e-5, u0=0.01, prune=false)
         
         # Check output structure sizes
-        @test size(results.w) == (n, K_fit)
+        @test size(results.w) == (n, K_max)
         @test size(results.pip) == (n, p_total)
-        @test length(results.u_star) == K_fit
+        @test length(results.u_star) == K_max
         @test length(results.margins) == p_total
         @test length(results.elbo_history) >= 2
         @test all(!isnan, results.elbo_history)
@@ -241,7 +241,7 @@ end
     end
 
     @testset "Computed properties of MixClustResult" begin
-        results = mixClust(dataset, K_fit; model_setting=SFRM(), max_iter=30, tol=1e-4,
+        results = mixClust(dataset, K_max; model_setting=SFRM(), max_iter=30, tol=1e-4,
                            u0=0.01, prune=true)
         @test results.n_obs      == n
         @test results.n_features == length(dataset)
@@ -283,15 +283,15 @@ end
 
     @testset "CAVI with Iterative Background Estimation" begin
         # 1. SFRM + :iterative
-        res_iter1 = mixClust(dataset, K_fit; model_setting=SFRM(), max_iter=40, tol=1e-4, u0=0.01, prune=false, beta_estimation=:iterative)
-        @test size(res_iter1.w) == (n, K_fit)
+        res_iter1 = mixClust(dataset, K_max; model_setting=SFRM(), max_iter=40, tol=1e-4, u0=0.01, prune=false, beta_estimation=:iterative)
+        @test size(res_iter1.w) == (n, K_max)
         @test all(!isnan, res_iter1.elbo_history)
         # Note: :iterative uses heuristic background updates (not proper coord ascent),
         # so strict monotonicity is not guaranteed — we only check finiteness.
 
         # 2. LFRM + :iterative
-        res_iter2 = mixClust(dataset, K_fit; model_setting=LFRM(), max_iter=40, tol=1e-4, u0=0.01, prune=false, beta_estimation=:iterative)
-        @test size(res_iter2.w) == (n, K_fit)
+        res_iter2 = mixClust(dataset, K_max; model_setting=LFRM(), max_iter=40, tol=1e-4, u0=0.01, prune=false, beta_estimation=:iterative)
+        @test size(res_iter2.w) == (n, K_max)
         @test all(!isnan, res_iter2.elbo_history)
     end
 end
